@@ -7,7 +7,81 @@ memsim <tracefile> <nframes> <rdm|lru|fifo|vms> <debug|quiet>
 #include <stdlib.h>
 #include <string.h>
 
+//doubly linked list implementation - uses head and tail sentinel nodes
+struct Node{
+    unsigned addr;
+    char rw;
+    struct Node* next;
+    struct Node* prev;
+};
+
+void enqueue(struct Node* tail, unsigned address, char readOrWrite){
+    struct Node* newNode = (struct Node*)malloc(sizeof(struct Node));
+    //assign data members
+    newNode->addr = address;
+    newNode->rw = readOrWrite;
+    //update pointers
+    newNode->next = tail;
+    newNode->prev = tail->prev;
+    newNode->prev->next = newNode;
+    tail->prev = newNode;
+    
+}
+
+struct Node* deleteNode(struct Node* nodeToDelete){
+    nodeToDelete->prev->next = nodeToDelete->next;
+    nodeToDelete->next->prev = nodeToDelete->prev;
+    return nodeToDelete;
+}
+
+void insertAfter(struct Node* previousNode, unsigned address, char readOrWrite){
+    if (previousNode == NULL){
+        printf("Error: previous node can't be null");
+        return;
+    }
+    struct Node* newNode = (struct Node*)malloc(sizeof(struct Node));
+    //assign data members
+    newNode->addr = address;
+    newNode->rw = readOrWrite;
+    //update pointers
+    newNode->prev = previousNode;
+    newNode->next = previousNode->next;
+    previousNode->next = newNode;
+    newNode->next->prev = newNode;
+
+
+}
+
+void push(struct Node* head, unsigned address, char readOrWrite){
+    insertAfter(head, address, readOrWrite);
+}
+
+struct Node* pop(struct Node* head){
+    return deleteNode(head->next);
+}
+
+struct Node* findNode(struct Node* node, unsigned elem){
+    if(node->prev == NULL) //skip head node if we started there
+        node = node->next;
+    while(node->next != NULL){ //while not at the tail node
+        if(node->addr == elem){
+            return node;
+        }
+        node = node->next;
+    }
+    return NULL;
+}
+
+void printList(struct Node* node){
+    while(node != NULL){
+        printf("address: %x RW: %c\n", node->addr, node->next);
+        node = node->next;
+    }
+}
+
 //helper functions
+
+//given the vpn, the array, and size of array it returns the index if found else -1
 int find(unsigned elem, unsigned array[], int size){
     int i;
     for(i = 0; i < size; i++){
@@ -77,11 +151,14 @@ void lru(){
 }
 
 void fifo(FILE* tracefile, int nframes){
-    unsigned* pageTable;
-    char* dirtyBit;
-    pageTable = (unsigned*)malloc(sizeof(unsigned)*nframes);
-    dirtyBit = (char*)malloc(sizeof(char)*nframes);
-    memset(dirtyBit, 'R',sizeof(char)*nframes);
+    //start linked list sentinels and set pointers
+    //this list will act as the page table and queue
+    struct Node* head;
+    struct Node* tail;
+    head->prev = NULL;
+    head->next = tail;
+    tail->prev = head;
+    tail->next = NULL;
 
     int capacity = 0; 
     unsigned addr;
@@ -92,10 +169,10 @@ void fifo(FILE* tracefile, int nframes){
 
     while(fscanf(tracefile,"%x %c",&addr,&rw) != EOF){
         addr = addr >> 12; //addr is the entire virtual address, we just need the VPN from it so, first 20 bits as each page is size 2^12
-        int i = find(addr, pageTable, nframes); //get index of the page in the page table if it exists
-        if(i != -1){ //if address is in the page table already
+        struct Node* foundNode = findNode(head, addr); //find address in list
+        if(foundNode != NULL){ //if address is in the page table already
             if(rw == 'W') 
-                dirtyBit[i] = rw;
+                foundNode->rw = rw;
         }
         else if(capacity < nframes){ //adress isn't in the table, is it full?
             pageTable[capacity] = addr; //add address to the table
