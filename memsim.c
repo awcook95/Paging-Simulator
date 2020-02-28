@@ -73,7 +73,9 @@ struct Node* findNode(struct Node* node, unsigned elem){
 }
 
 void printList(struct Node* node){
-    while(node != NULL){
+    if(node->prev == NULL) //skip head node if we started there
+        node = node->next;
+    while(node->next != NULL){
         printf("address: %x RW: %c\n", node->addr, node->next);
         node = node->next;
     }
@@ -153,8 +155,8 @@ void lru(){
 void fifo(FILE* tracefile, int nframes){
     //start linked list sentinels and set pointers
     //this list will act as the page table and queue
-    struct Node* head;
-    struct Node* tail;
+    struct Node* head = (struct Node*)malloc(sizeof(struct Node));
+    struct Node* tail = (struct Node*)malloc(sizeof(struct Node));
     head->prev = NULL;
     head->next = tail;
     tail->prev = head;
@@ -174,19 +176,16 @@ void fifo(FILE* tracefile, int nframes){
             if(rw == 'W') 
                 foundNode->rw = rw;
         }
-        else if(capacity < nframes){ //adress isn't in the table, is it full?
-            pageTable[capacity] = addr; //add address to the table
+        else if(capacity < nframes){ //adress isn't in the table, if it's not full yet
+            enqueue(tail, addr, rw); //add address to the table
             diskReads++;
             capacity++;
-            if(rw == 'W') 
-                dirtyBit[i] = rw;
         }
         else{ //table is full, must make room
-            i = random(0, nframes); //randomly select page to remove
-            if(dirtyBit[i] == 'W') //if ejected page was dirty write it to disk
+            struct Node* ejectedNode = pop(head); //remove oldest member of the queue
+            if(ejectedNode->rw == 'W') //if ejected page was dirty write it to disk
                 diskWrites++;
-            pageTable[i] = addr; //add new address to table
-            dirtyBit[i] = rw;
+            enqueue(tail, addr, rw); //enqueue new address
             diskReads++;
         }
         events++;
@@ -202,15 +201,10 @@ void vms(){
 
 int main(int argc, char** argv){
     //errors for incorrect cm args
-    if(argc > 5){
-		printf("Too many command line arguments, ending program\n");
-		return 0;
-	}
-	else if(argc < 5){
-		printf("Too few command line arguments, ending program\n");
+    if(argc != 5){
+		printf("Incorrect number of command line arguments, ending program\n");
 		return 0;
     }
-
     //get command line args
     char* tracefile = argv[1];
     int nframes = atoi(argv[2]);
