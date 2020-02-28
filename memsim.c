@@ -336,12 +336,12 @@ void vms(FILE* tracefile, int nframes){
             p2ListSize++;
             }
             else{ //table is full, must make room
-                if(p2ListSize >= p1ListSize){ //if p1 is using more or equal # of frames
+                if(p2ListSize >= p1ListSize){ //if p2 is using more or equal # of frames
                     struct Node* ejectedNode = findNodeByRW(p2Head, 'R'); //prioritize clean pages
                     if(ejectedNode == NULL){
                         if(p2Head->next->rw == 'W')
                             diskWrites++;
-                        free(pop(p1Head)); //since all frames are dirty eject the oldest one and delete it
+                        free(pop(p2Head)); //since all frames are dirty eject the oldest one and delete it
                     }
                     else{
                         if(ejectedNode->rw == 'W')
