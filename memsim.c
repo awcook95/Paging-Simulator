@@ -112,7 +112,7 @@ void printoutput(int nframes, int events, int reads, int writes){
     printf("total disk writes: %d\n", writes);
 }
 
-int random(int lower, int upper){
+int randomNum(int lower, int upper){
     srand(1);
     int num = (rand() % (upper - lower + 1)) + lower;
     return num;
@@ -148,7 +148,7 @@ void rdm(FILE* tracefile, int nframes){
                 dirtyBit[i] = rw;
         }
         else{ //table is full, must make room
-            i = random(0, nframes); //randomly select page to remove
+            i = randomNum(0, nframes); //randomly select page to remove
             if(dirtyBit[i] == 'W') //if ejected page was dirty write it to disk
                 diskWrites++;
             pageTable[i] = addr; //add new address to table
